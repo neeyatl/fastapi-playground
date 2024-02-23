@@ -1,6 +1,11 @@
+import logging
+
 from fastapi.routing import APIRouter
 
-from .schema import Category, mock_db_data
+from .mockdb import mock_db_data
+from .schema import Category, Item
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1")
 
@@ -13,6 +18,13 @@ async def root():
 @router.get("/items/")
 async def read_item(skip: int = 0, limit: int = 5):
     return mock_db_data[skip : skip + limit]
+
+
+@router.post("/items/")
+async def create_item(item: Item):
+    mock_db_data.append(item.model_dump())
+    item_id = len(mock_db_data) - 1
+    return item
 
 
 @router.get("/items/{item_id}")
@@ -37,6 +49,20 @@ async def read_item(
             }
         )
     return item
+
+
+@router.put("/items/{item_id}")
+async def update_item(item_id: int, item: Item):
+    if item_id >= len(mock_db_data):
+        return {"message": "Item not found"}
+    mock_db_data[item_id] = item.model_dump()
+    return {
+        "item_id": item_id,
+        "extra": {
+            "total_price": item.price + (item.tax or 0.0),
+        },
+        **item.model_dump(),
+    }
 
 
 @router.get("/items/{category}/{item_id}")
