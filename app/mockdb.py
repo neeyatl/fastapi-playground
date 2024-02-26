@@ -77,3 +77,9 @@ mock_db_data = [
         "tax": None,
     },
 ]
+
+mock_users = [
+    {"username": "johndoe", "full_name": "John Doe"},
+    {"username": "alice", "full_name": "Alice Smith"},
+    {"username": "bob", "full_name": "Bob Johnson"},
+]

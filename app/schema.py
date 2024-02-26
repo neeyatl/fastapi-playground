@@ -10,6 +10,11 @@ class Item(BaseModel):
     tax: float | None = None
 
 
+class User(BaseModel):
+    username: str
+    full_name: str | None = None
+
+
 class Category(str, Enum):
     animals = "animals"
     vehicles = "vehicles"

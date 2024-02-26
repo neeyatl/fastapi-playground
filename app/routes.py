@@ -1,11 +1,11 @@
 import logging
 from typing import Annotated
 
-from fastapi import Query
+from fastapi import Query, Path, Body
 from fastapi.routing import APIRouter
 
-from .mockdb import mock_db_data
-from .schema import Category, Item
+from .mockdb import mock_db_data, mock_users
+from .schema import Category, Item, User
 
 logger = logging.getLogger(__name__)
 
@@ -23,10 +23,18 @@ async def read_items(skip: int = 0, limit: int = 5):
 
 
 @router.post("/items/")
-async def create_item(item: Item):
+async def create_item(
+    item: Item, user: User, importance: Annotated[int, Body()]
+):
     mock_db_data.append(item.model_dump())
-    # item_id = len(mock_db_data) - 1
-    return item
+    mock_users.append(user.model_dump())
+    item_id = len(mock_db_data) - 1
+    return {
+        "item_id": item_id,
+        "item": item,
+        "user": user,
+        "importance": importance,
+    }
 
 
 @router.get("/items/{item_id}")
@@ -79,7 +87,7 @@ async def read_item(
 
 
 @router.put("/items/{item_id}")
-async def update_item(item_id: int, item: Item):
+async def update_item(item_id: int, item: Annotated[Item, Body(embed=True)]):
     if item_id >= len(mock_db_data):
         return {"message": "Item not found"}
     mock_db_data[item_id] = item.model_dump()
@@ -93,8 +101,23 @@ async def update_item(item_id: int, item: Item):
 
 
 @router.get("/items/{category}/{item_id}")
-async def read_category_item(category: Category, item_id: int):
-    common_fields = {"item_id": item_id, "category": category}
+async def read_category_item(
+    category: Category,
+    item_id: Annotated[
+        int, Path(title="The ID of the item to get", ge=0, lt=1000)
+    ],
+    size: Annotated[
+        float,
+        Query(
+            ge=0, lt=1, description="Size of the item in terms of centimeters"
+        ),
+    ],
+):
+    common_fields = {
+        "item_id": item_id,
+        "category": category,
+        "size": size * 10,  # convert centimeters to meters
+    }
     match category:
         case Category.animals:
             return {
