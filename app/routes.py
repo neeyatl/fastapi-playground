@@ -1,5 +1,7 @@
 import logging
+from typing import Annotated
 
+from fastapi import Query
 from fastapi.routing import APIRouter
 
 from .mockdb import mock_db_data
@@ -16,27 +18,52 @@ async def root():
 
 
 @router.get("/items/")
-async def read_item(skip: int = 0, limit: int = 5):
+async def read_items(skip: int = 0, limit: int = 5):
     return mock_db_data[skip : skip + limit]
 
 
 @router.post("/items/")
 async def create_item(item: Item):
     mock_db_data.append(item.model_dump())
-    item_id = len(mock_db_data) - 1
+    # item_id = len(mock_db_data) - 1
     return item
 
 
 @router.get("/items/{item_id}")
 async def read_item(
-    item_id: int, vendor: str, q: str | None = None, short: bool = True
+    item_id: int,
+    vendor: str,
+    item_query: Annotated[
+        list[str],
+        Query(
+            alias="item-query",
+            deprecated=True,
+        ),
+    ] = ["list", "of", "strings"],
+    q: Annotated[
+        str | None,
+        Query(
+            title="Query string",
+            description="Query string for the items to search "
+            "in the database that have a good match",
+            min_length=3,
+            max_length=50,
+            pattern="^[A-Za-z]+$",
+        ),
+    ] = None,
+    short: bool = True,
 ):
     data = (
         mock_db_data[item_id]
         if item_id < len(mock_db_data)
         else {"message": "Item not found"}
     )
-    item = {"item_id": item_id, "vendor": vendor, **data}
+    item = {
+        "item_id": item_id,
+        "vendor": vendor,
+        "item-query": item_query,
+        **data,
+    }
     if q:
         item.update({"q": q})
     if not short:
@@ -66,7 +93,7 @@ async def update_item(item_id: int, item: Item):
 
 
 @router.get("/items/{category}/{item_id}")
-async def read_item(category: Category, item_id: int):
+async def read_category_item(category: Category, item_id: int):
     common_fields = {"item_id": item_id, "category": category}
     match category:
         case Category.animals:
