@@ -5,7 +5,7 @@ from fastapi import Query, Path, Body
 from fastapi.routing import APIRouter
 
 from .mockdb import mock_db_data, mock_users
-from .schema import Category, Item, User
+from .schema import Category, Item, User, Offer, Image
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,22 @@ async def read_items(skip: int = 0, limit: int = 5):
 
 @router.post("/items/")
 async def create_item(
-    item: Item, user: User, importance: Annotated[int, Body()]
+    item: Item,
+    user: Annotated[
+        User,
+        Body(
+            examples=[
+                {
+                    "username": "johndoe",
+                    "full_name": "John Doe",
+                },
+                {
+                    "username": "alice",
+                },
+            ]
+        ),
+    ],
+    importance: Annotated[int, Body()],
 ):
     mock_db_data.append(item.model_dump())
     mock_users.append(user.model_dump())
@@ -87,7 +102,41 @@ async def read_item(
 
 
 @router.put("/items/{item_id}")
-async def update_item(item_id: int, item: Annotated[Item, Body(embed=True)]):
+async def update_item(
+    item_id: int,
+    item: Annotated[
+        Item,
+        Body(
+            embed=True,
+            examples=[
+                {
+                    "name": "Rainbow Shirt",
+                    "description": "Looks like a rainbow",
+                    "type": "clothing",
+                    "price": 35.4,
+                    "tax": 3.2,
+                    "tags": [
+                        "style",
+                        "rainbow",
+                        "fashion",
+                    ],
+                    "images": [
+                        {
+                            "url": "https://example.com/images/rainbow_shirt.jpg",
+                            "name": "Rainbow Shirt",
+                        }
+                    ],
+                },
+                {
+                    "name": "T-Shirt",
+                    "type": "clothing",
+                    "description": "Style: Purple, Size: Small",
+                    "price": 35.4,
+                },
+            ],
+        ),
+    ],
+):
     if item_id >= len(mock_db_data):
         return {"message": "Item not found"}
     mock_db_data[item_id] = item.model_dump()
@@ -154,3 +203,19 @@ async def read_category_item(
             }
         case _:
             return {**common_fields, "message": "Unknown Category"}
+
+
+@router.post("/offers/")
+async def create_offer(offer: Offer):
+    return offer
+
+
+@router.post("/items/{item_id}/images/multiple/")
+async def create_multiple_images(item_id: int, images: list[Image]):
+    logger.info("Creating multiple images for item %s", item_id)
+    return images
+
+
+@router.post("/index-weights/")
+async def create_index_weights(weights: dict[int, float]):
+    return weights
