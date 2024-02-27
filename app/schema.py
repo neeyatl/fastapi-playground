@@ -1,5 +1,5 @@
 from enum import Enum
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, EmailStr
 
 
 class Image(BaseModel):
@@ -47,6 +47,11 @@ class Item(BaseModel):
 class User(BaseModel):
     username: str
     full_name: str = ''
+    email: EmailStr
+
+
+class UserIn(User):
+    password: str
 
 
 class Offer(BaseModel):

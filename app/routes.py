@@ -1,11 +1,12 @@
 import logging
-from typing import Annotated
+from typing import Annotated, Union
 
-from fastapi import Query, Path, Body
+from fastapi import Body, Path, Query, Response, status
+from fastapi.responses import RedirectResponse
 from fastapi.routing import APIRouter
 
 from .mockdb import mock_db_data, mock_users
-from .schema import Category, Item, User, Offer, Image
+from .schema import Category, Image, Item, Offer, User, UserIn
 
 logger = logging.getLogger(__name__)
 
@@ -13,16 +14,20 @@ router = APIRouter(prefix="/api/v1")
 
 
 @router.get("/")
-async def root():
+async def root() -> dict[str, str]:
     return {"message": "Hello World"}
 
 
-@router.get("/items/")
-async def read_items(skip: int = 0, limit: int = 5):
+@router.get("/items/", response_model_exclude_unset=True)
+async def read_items(skip: int = 0, limit: int = 5) -> Item:
     return mock_db_data[skip : skip + limit]
 
 
-@router.post("/items/")
+@router.post(
+    "/items/",
+    status_code=status.HTTP_201_CREATED,
+    response_model=Union[Item, User],
+)
 async def create_item(
     item: Item,
     user: Annotated[
@@ -40,7 +45,7 @@ async def create_item(
         ),
     ],
     importance: Annotated[int, Body()],
-):
+) -> dict[str, str]:
     mock_db_data.append(item.model_dump())
     mock_users.append(user.model_dump())
     item_id = len(mock_db_data) - 1
@@ -75,7 +80,7 @@ async def read_item(
         ),
     ] = None,
     short: bool = True,
-):
+) -> Item:
     data = (
         mock_db_data[item_id]
         if item_id < len(mock_db_data)
@@ -136,7 +141,7 @@ async def update_item(
             ],
         ),
     ],
-):
+) -> Item:
     if item_id >= len(mock_db_data):
         return {"message": "Item not found"}
     mock_db_data[item_id] = item.model_dump()
@@ -161,7 +166,7 @@ async def read_category_item(
             ge=0, lt=1, description="Size of the item in terms of centimeters"
         ),
     ],
-):
+) -> dict[str, str | int | float]:
     common_fields = {
         "item_id": item_id,
         "category": category,
@@ -206,16 +211,30 @@ async def read_category_item(
 
 
 @router.post("/offers/")
-async def create_offer(offer: Offer):
+async def create_offer(offer: Offer) -> Offer:
     return offer
 
 
 @router.post("/items/{item_id}/images/multiple/")
-async def create_multiple_images(item_id: int, images: list[Image]):
+async def create_multiple_images(
+    item_id: int, images: list[Image]
+) -> list[Image]:
     logger.info("Creating multiple images for item %s", item_id)
     return images
 
 
 @router.post("/index-weights/")
-async def create_index_weights(weights: dict[int, float]):
+async def create_index_weights(weights: dict[int, float]) -> dict[int, float]:
     return weights
+
+
+@router.post("/user/", response_model=User)
+async def create_user(user: UserIn):
+    return user
+
+
+@router.get("/portal", response_model=None)
+async def get_portal(teleport: bool = False) -> Response | dict[str, str]:
+    if teleport:
+        return RedirectResponse(url="https://www.example.com")
+    return {"message": "Here's your interdimensional portal."}
